@@ -92,7 +92,7 @@ main_update_lights:
   sensor_log: sensor.main_lights
   
 exterior_update_lights:
-  module: test
+  module: update_lights
   class: update_lights
   run_every: 180
   entities:
