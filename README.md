@@ -1,15 +1,15 @@
 # update_lights
-This code acts on a list of lights to primarialy do two things: 
----
-1) Gradually change the brighness level and the color temperature of the lights from the start to end time ONLY if the lights are currently on
-2) When a light in the list is turned on and its brightness is not equal to the current level it immedialty changes the settings to match other lights
+## This code acts on a list of lights to primarialy do two things: 
+
+1) Gradually change the brightness level and the color temperature of the lights from the start to end time ONLY if the lights are currently on
+2) When a light in the list is turned on and its brightness is not equal to the current level it immediatly changes the settings to match other lights
 
 What makes this code different than others (namely custom component Circadian Lighting or Flux component) is the implementation of change thresholds; 
-so if someone manually adjusts a light outside of the threshold range the code will skip that light
+so if someone manually adjusts a light outside of the threshold range the code will skip that light.
 The brightness/color temp is calculated by determining how far from the middle point of the start and end time the current time is
 in other words at start time and end time there is 100% brightness, at the exact middle point there is 0% brightness (or whatever the configured max and min are)
 All lights can be mixed e.g. you can have a list with RGB, color temp, and brightness only lights together
-There are numerious options that can be configured to adjust the gradient of the change and constrain whether or not the code is active
+There are numerous options that can be configured to adjust the gradient of the change and constrain whether or not the code is active
 
 Options:
 ---
@@ -63,7 +63,7 @@ stop_lights_off (turn off the lights at the stop time)
 
 AppDaemon constraints can be used as well, see AppDaemon API Docs https://appdaemon.readthedocs.io/en/latest/APPGUIDE.htmlcallback-constraints
 
-##Example apps.yaml:
+## Example apps.yaml:
 
 ```
 main_update_lights:
