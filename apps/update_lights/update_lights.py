@@ -51,13 +51,15 @@ class update_lights(hass.Hass):
 
         if self.start_lights_on or str(self.start_lights_on).lower() == 'true':
             self.start_lights_on = True
-            self.run_daily(self.lights_on, self.start_time)
+            self.run_daily(self.lights_on, self.parse_time(self.start_time))
+            self.log(self.parse_time(self.start_time))
         else:
             self.start_lights_on = False
 
         if self.stop_lights_off or str(self.stop_lights_off).lower() == 'true':
             self.stop_lights_off = True
             self.run_daily(self.lights_off, self.parse_time(self.end_time))
+            self.log(self.parse_time(self.end_time))
         else:
             self.stop_lights_off = False
 
