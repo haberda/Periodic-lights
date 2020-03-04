@@ -1,8 +1,8 @@
 # update_lights
-## This code acts on a list of lights to primarialy do two things: 
+## This code acts on a list of lights to primarily do two things: 
 
 1) Gradually change the brightness level and the color temperature of the lights from the start to end time ONLY if the lights are currently on
-2) When a light in the list is turned on and its brightness is not equal to the current level it immediatly changes the settings to match other lights
+2) When a light in the list is turned on and its brightness is not equal to the current level it immediately changes the settings to match other lights
 
 What makes this code different than others (namely custom component Circadian Lighting or Flux component) is the implementation of change thresholds; 
 so if someone manually adjusts a light outside of the threshold range the code will skip that light.
@@ -14,32 +14,32 @@ There are numerous options that can be configured to adjust the gradient of the 
 Options:
 ---
 
-Key | Required | Description
------------- | ------------- | -------------
-entities | True | List of lights
-run_every | False | Time interval in seconds to run the code, default: 60
-start_time | False | Time in format 'HH:MM:SS' to start; also can be 'sunset - HH:MM:SS', default: sunset
-end_time | False | Time in format 'HH:MM:SS' to start; also can be 'sunrise - HH:MM:SS', default: sunrise
-start_index  | False | With this option you can push the middle point left or right and increase or decrease the brightness change gradient and point of minimum brightness/temp, takes time the same was as start/end times, default: None
-end_index | False | Same as start index but changes the end time rather than start both can be configured to have 2 minimum brightness points
-brightness_threshold | False | Residual threshold between calculated brightness and current brightness if residual > this no change, percent or bit, default 255
-brightness_unit | False | Percent or bit, default: bit
-max_brightness_level | False | Max brightness level, default: 255 or 100 depending on bit or percent unit
-min_brightness_level | False | Max brightness level, default: 3 or 1 depending on bit or percent unit
-color_temp_unit | False | Kelvin or mired color temp unit, default: kelvin
-color_temp_max | False | Maximum color temp, default: 4000 kelvin
-color_temp_min | False | Min color temp, default: 2200 kelvin
-disable_entity | False | List of entities that when active disable the functionality of this code, default: None
-disable_condition | False | Override default condition check for disable_entity, default: on, True, or Home
-sleep_entity | False | List of entities that track whether a 'sleep mode' has been enabled this immediatly brings lights to the lowest brightness and color temp defined, default: None
-sleep_condition | False | Override default condition check for sleep_entity, default: on, True, or Home
-red_hour | False | Time in format 'HH:MM:SS' during the start and stop times that the RGB lights turn red if sleep conditions are met, default: None
-transition | False | Light transition time in seconds, default: 5
-companion_script | False | Script to execute before changing lights, useful to force Zwave lights to update state, default: None
-sensor_log | False | Creates a sensor to track the dimming percentage, mostly for diagnostic purposes, format: sensor.my_sensor, default: None
-keep_lights_on | False | Forces the light to turn on, in other words ignores that it is off, Boolean: True or False, default: False
-start_lights_on | False | Turn on the lights at the start time, default: False
-stop_lights_off | False | Turn off the lights at the stop time, default: False
+Key | Required | Description | Default | Unit
+------------ | ------------- | ------------- | ------------- | -------------
+entities | True | List of lights | None | List
+run_every | False | Time interval in seconds to run the code | 60 | Seconds
+start_time | False | Time in format 'HH:MM:SS' to start; also can be 'sunset - HH:MM:SS' | sunset | Time
+end_time | False | Time in format 'HH:MM:SS' to start; also can be 'sunrise - HH:MM:SS' | sunrise | Time
+start_index  | False | With this option you can push the middle point left or right and increase or decrease the brightness change gradient and point of minimum brightness/temp, takes time the same was as start/end times | None | Time
+end_index | False | Same as start index but changes the end time rather than start both can be configured to have 2 minimum brightness points | None | Time
+brightness_threshold | False | Residual threshold between calculated brightness and current brightness if residual > this no change | 255 or 100 | Bit or percent
+brightness_unit | False | percent or bit | bit | None
+max_brightness_level | False | Max brightness level | 255 or 100 | Bit or percent
+min_brightness_level | False | Max brightness level | 3 or 1 | Bit or percent
+color_temp_unit | False | Kelvin or mired color temp unit | kelvin | 
+color_temp_max | False | Maximum color temp | 4000 | kelvin
+color_temp_min | False | Min color temp | 2200 | kelvin
+disable_entity | False | List of entities that when active disable the functionality of this code | None | List
+disable_condition | False | Override default condition check for disable_entity | on, True, or Home | Boolean or string
+sleep_entity | False | List of entities that track whether a 'sleep mode' has been enabled this immediatly brings lights to the lowest brightness and color temp defined | None | List
+sleep_condition | False | Override default condition check for sleep_entity | on, True, or Home | Boolean or string
+red_hour | False | Time in format 'HH:MM:SS' during the start and stop times that the RGB lights turn red if sleep conditions are met | None | Time
+transition | False | Light transition time in seconds | 5 | Seconds
+companion_script | False | Script to execute before changing lights, useful to force Zwave lights to update state | None | 
+sensor_log | False | Creates a sensor to track the dimming percentage, mostly for diagnostic purposes, format: sensor.my_sensor | None | 
+keep_lights_on | False | Forces the light to turn on, in other words ignores that it is off | False | Boolean
+start_lights_on | False | Turn on the lights at the start time | False | Boolean
+stop_lights_off | False | Turn off the lights at the stop time | False | Boolean
 
 AppDaemon constraints can be used as well, see AppDaemon API Docs https://appdaemon.readthedocs.io/en/latest/APPGUIDE.htmlcallback-constraints
 
@@ -104,6 +104,4 @@ exterior_update_lights:
   transition: 0
   start_lights_on: True
   stop_lights_off: True
-  constrain_start_time: sunset - 0:30:00
-  constrain_end_time: sunrise + 0:10:00
 ```
