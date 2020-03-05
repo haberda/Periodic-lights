@@ -303,7 +303,7 @@ class update_lights(hass.Hass):
                         kelvin = self.get_state(entity_id, attribute='kelvin')
                         rgb_color = self.get_state(entity_id, attribute='rgb_color')
                         if color_temp is not None or rgb_color is not None or kelvin is not None:
-                            if rgb_color is not None and (color_temp is None and kelvin is None) and sleep_state != True:
+                            if rgb_color is not None and color_temp is None and kelvin is None and sleep_state != True:
                                 tmp_red, tmp_green, tmp_blue = self.rgb_color(desired_temp_kelvin)
                                 self.turn_on(entity_id = entity_id, brightness = brightness_level, transition = transition , rgb_color = [int(tmp_red), int(tmp_green), int(tmp_blue)])
                             elif red_hour == True and sleep_state == True and rgb_color is not None:
