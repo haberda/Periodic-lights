@@ -3,15 +3,18 @@ import datetime
 from datetime import timedelta
 import math
 
+
+
 class update_lights(hass.Hass):
     def initialize(self):
         now = datetime.datetime.now()
         #Import all user settings
         self.all_lights = self.args.get('entities', None)
-        self.disable_entity = self.args.get('disable_entity', None)
+        self.disable_entity = list(self.args.get('disable_entity', None))
         self.disable_condition = self.args.get('disable_condition', None)
-        self.sleep_entity = self.args.get('sleep_entity', None)
+        self.sleep_entity = list(self.args.get('sleep_entity', None))
         self.sleep_condition = self.args.get('sleep_condition', None)
+        self.sleep_color = self.args.get('sleep_color', 'red')
         self.max_brightness_level = self.args.get('max_brightness_level', 255)
         self.min_brightness_level = self.args.get('min_brightness_level', 3)
         self.brightness_unit = self.args.get('brightness_unit', 'bit')
@@ -28,21 +31,25 @@ class update_lights(hass.Hass):
         self.keep_lights_on = self.args.get('keep_lights_on', False)
         self.start_lights_on = self.args.get('start_lights_on', False)
         self.stop_lights_off = self.args.get('stop_lights_off', False)
+
         #Basic error checking
         if not isinstance(self.transition, int) or self.transition > 300:
             self.transition = 5
 
+        if self.brightness_unit == 'percent':
+            #Convert to bit
+            self.brightness_threshold = int(self.brightness_threshold * 2.55)
+            self.max_brightness_level = int(self.max_brightness_level * 2.55)
+            self.min_brightness_level = int(self.min_brightness_level * 2.55)
         if not isinstance(self.brightness_threshold, int) or self.brightness_threshold > 255:
             self.brightness_threshold = 255
+        if not isinstance(self.max_brightness_level, int) or self.max_brightness_level > 255:
+            self.max_brightness_level = 255
+        if not isinstance(self.min_brightness_level, int) or self.min_brightness_level > 255 or self.min_brightness_level > self.max_brightness_level:
+            self.min_brightness_level = 3
 
         if isinstance(self.all_lights, str):
             self.all_lights = self.all_lights.split(',')
-
-        if isinstance(self.disable_entity, str):
-            self.disable_entity = self.disable_entity.split(',')
-
-        if isinstance(self.sleep_entity, str):
-            self.sleep_entity = self.sleep_entity.split(',')
 
         if self.keep_lights_on or str(self.keep_lights_on).lower() == 'true':
             self.keep_lights_on = True
@@ -52,22 +59,28 @@ class update_lights(hass.Hass):
         if self.start_lights_on or str(self.start_lights_on).lower() == 'true':
             self.start_lights_on = True
             self.run_daily(self.lights_on, self.parse_time(self.start_time))
-            self.log(self.parse_time(self.start_time))
         else:
             self.start_lights_on = False
 
         if self.stop_lights_off or str(self.stop_lights_off).lower() == 'true':
             self.stop_lights_off = True
             self.run_daily(self.lights_off, self.parse_time(self.end_time))
-            self.log(self.parse_time(self.end_time))
         else:
             self.stop_lights_off = False
+
         #Set callbacks for time interval, and subscribe to individual lights and disable entities
         interval = int(self.args.get('run_every', 60))
         target = now + timedelta(seconds=interval)
         if self.all_lights is not None:
             if self.disable_entity is not None:
                 for entity in self.disable_entity:
+                    if len(entity.split(',')) > 1:
+                        entity = entity.split(',')[0]
+                    self.listen_state(self.state_change, entity)
+            if self.sleep_entity is not None:
+                for entity in self.sleep_entity:
+                    if len(entity.split(',')) > 1:
+                        entity = entity.split(',')[0]
                     self.listen_state(self.state_change, entity)
             for light in self.all_lights:
                 self.listen_state(self.state_change, light)
@@ -89,8 +102,14 @@ class update_lights(hass.Hass):
             return
         if self.disable_entity is not None:
             for check_entity in self.disable_entity:
-                if entity == check_entity and (((old == 'on' or old == True or old == 'Home' or old == 'True') and self.disable_condition == None) or old == self.disable_condition):
+                if entity == check_entity.split(',')[0] and not self.condition_query(self.disable_entity, self.disable_condition):
                     self.adjust_light(self.all_lights, threshold, transition)
+                    return
+        if self.sleep_entity is not None:
+            for check_entity in self.sleep_entity:
+                if entity == check_entity.split(',')[0]:
+                    self.adjust_light(self.all_lights, threshold, transition)
+                    return
 
     def lights_on(self, kwargs):
         #Turn on all lights
@@ -162,7 +181,7 @@ class update_lights(hass.Hass):
             color_max = self.color_temperature_mired_to_kelvin(color_max)
             color_min = self.color_temperature_mired_to_kelvin(color_min)
 
-        sleep_state = self.sleep_query()
+        sleep_state = self.condition_query(self.sleep_entity, self.sleep_condition)
 
         if sleep_state == False:
             #Calculate desired color temp
@@ -183,12 +202,12 @@ class update_lights(hass.Hass):
         if desired_temp <= 66:
             tmp_red = 255 - (desired_temp / 2)
             tmp_green = desired_temp
-            tmp_green = 99.4708025861 * (0.0336982 * tmp_green + 1.96562) - 161.1195681661 + 50
+            tmp_green = 99.4708025861 * (0.0336982 * tmp_green + 1.96562) - 161.1195681661 + 75
             if desired_temp <= 19:
                 tmp_blue = 0
             else:
                 tmp_blue = desired_temp - 10
-                tmp_blue = 138.5177312231 * (0.0264957 * tmp_blue  + 2.44098) - 305.0447927307 + 50
+                tmp_blue = 138.5177312231 * (0.0264957 * tmp_blue  + 2.44098) - 305.0447927307 + 75
         else:
             tmp_red = desired_temp - 0
             tmp_red = 329.698727446 * tmp_red ** -0.1332047592
@@ -223,14 +242,10 @@ class update_lights(hass.Hass):
         min_brightness_level = self.min_brightness_level
         brightness_unit = self.brightness_unit
 
-        if brightness_unit == 'percent':
-            #Convert to bit
-            max_brightness_level = int(max_brightness_level) * 2.55
-            min_brightness_level = int(min_brightness_level) * 2.55
         #Calculate brightness level in the defined range
         brightness_level = int(max_brightness_level) - round(int(max_brightness_level - min_brightness_level) * pct)
 
-        sleep_state = self.sleep_query()
+        sleep_state = self.condition_query(self.sleep_entity, self.sleep_condition)
 
         if int(brightness_level) > int(max_brightness_level) and sleep_state != True:
             #If we are above 255 correct for that
@@ -239,14 +254,6 @@ class update_lights(hass.Hass):
             #If we are below min or are in sleep state
             return int(min_brightness_level)
         return brightness_level
-
-    def sleep_query (self):
-        sleep_state = False
-        if self.sleep_entity is not None:
-            for sleep in self.sleep_entity:
-                if ((self.get_state(sleep) == 'on' or self.get_state(sleep) == True or self.get_state(sleep) == 'True' or self.get_state(sleep) == 'Home') and self.sleep_condition == None) or self.get_state(sleep) == self.sleep_condition:
-                    sleep_state = True
-        return sleep_state
 
     def red_hour_query (self):
         if self.red_hour is not None:
@@ -257,16 +264,19 @@ class update_lights(hass.Hass):
         else:
             return False
 
-    def disabled_query (self):
-        query = False
-        if self.disable_entity is not None:
-            for entity in self.disable_entity:
-                disable_state = self.get_state(entity)
-                if ((disable_state == 'on' or disable_state == True or disable_state == 'True' or disable_state == 'Home') and self.disable_condition == None) or disable_state == self.disable_condition:
-                    query = True
-            return query
-        else:
-            return query
+    def condition_query (self, entities, condition = None):
+        value = False
+        condition_states = ['on', 'Home', 'home', 'True', 'true']
+        if condition is not None:
+            condition_states.append(condition.split(','))
+        if entities is not None:
+            for entity in entities:
+                if len(entity.split(',')) > 1:
+                    if entity.split(',')[1] == self.get_state(entity.split(',')[0]):
+                        value = True
+                elif self.get_state(entity) == True or self.get_state(entity) in condition_states:
+                    value = True
+        return value
 
     def color_temperature_mired_to_kelvin(self, mired_temperature: float) -> float:
         """Convert absolute mired shift to degrees kelvin."""
@@ -278,7 +288,7 @@ class update_lights(hass.Hass):
 
     def adjust_light(self, entities, threshold, transition):
 
-        override = self.disabled_query()
+        override = self.condition_query(self.disable_entity, self.disable_condition)
 
         if override:
             return None
@@ -291,11 +301,11 @@ class update_lights(hass.Hass):
         pct = self.pct()
 
         if 'sensor_log' in self.args:
-            self.set_state(self.args['sensor_log'], state=pct,  attributes = {"unit_of_measurement":"%"})
+            self.set_state(self.args['sensor_log'], state=(pct*100),  attributes = {"unit_of_measurement":"%", "note":"Percentage of dimming, inverted to brightness percent"})
 
         brightness_level = self.brightness(pct)
         desired_temp_kelvin, desired_temp_mired = self.color(pct)
-        sleep_state = self.sleep_query()
+        sleep_state = self.condition_query(self.sleep_entity, self.sleep_condition)
         red_hour = self.red_hour_query()
 
         ##########################
@@ -304,27 +314,56 @@ class update_lights(hass.Hass):
 
         if isinstance(entities, str):
             entities = entities.split(',')
+        color_temp_list = []
+        kelvin_list = []
+        rgb_list = []
+        brightness_only_list = []
+
+        rgb_service_data = {"brightness": brightness_level, "transition": transition}
+        color_temp_service_data = {"brightness": brightness_level, "transition": transition}
+        kelvin_service_data = {"brightness": brightness_level, "transition": transition}
+        brightness_only_service_data = {"brightness": brightness_level, "transition": transition}
 
         for entity_id in entities:
-            if self.entity_exists(entity_id):
-                cur_state = self.get_state(entity_id)
+            cur_state = self.get_state(entity_id)
+            if (cur_state == 'on' or self.keep_lights_on):
                 brightness = self.get_state(entity_id, attribute="brightness")
-                if (brightness is not None and (abs(int(brightness) - int(brightness_level)) < float(threshold)) and int(brightness) != int(brightness_level)) or self.keep_lights_on or (red_hour and sleep_state):
-                    if (cur_state == 'on' or self.keep_lights_on):
-                        color_temp = self.get_state(entity_id, attribute='color_temp')
-                        kelvin = self.get_state(entity_id, attribute='kelvin')
-                        rgb_color = self.get_state(entity_id, attribute='rgb_color')
-                        if color_temp is not None or rgb_color is not None or kelvin is not None:
-                            if rgb_color is not None and color_temp is None and kelvin is None and sleep_state != True:
-                                tmp_red, tmp_green, tmp_blue = self.rgb_color(desired_temp_kelvin)
-                                self.turn_on(entity_id = entity_id, brightness = brightness_level, transition = transition , rgb_color = [int(tmp_red), int(tmp_green), int(tmp_blue)])
-                            elif red_hour == True and sleep_state == True and rgb_color is not None:
-                                self.turn_on(entity_id = entity_id, brightness = int(255), transition = transition , color_name = "red")
-                            elif (color_temp is not None and self.color_temp_unit == 'mired') or (self.color_temp_unit == 'kelvin' and kelvin is None):
-                                self.turn_on(entity_id = entity_id, brightness = brightness_level, transition = transition , color_temp = desired_temp_mired)
-                            elif (color_temp is None and self.color_temp_unit == 'mired') or (self.color_temp_unit == 'kelvin' and kelvin is not None):
-                                self.turn_on(entity_id = entity_id, brightness = brightness_level, transition = transition , kelvin = desired_temp_kelvin)
-                        else:
-                            self.turn_on(entity_id = entity_id, brightness = brightness_level, transition = transition)
+                if (brightness is not None and (abs(int(brightness) - int(brightness_level)) < int(threshold)) and int(brightness) != int(brightness_level)) or self.keep_lights_on or (red_hour and sleep_state):
+                    color_temp = self.get_state(entity_id, attribute='color_temp')
+                    kelvin = self.get_state(entity_id, attribute='kelvin')
+                    rgb_color = self.get_state(entity_id, attribute='rgb_color')
+                    if (rgb_color is not None and color_temp is None and kelvin is None) or (red_hour == True and sleep_state == True and rgb_color is not None):
+                        rgb_list.append(entity_id)
+                    elif color_temp is not None:
+                        color_temp_list.append(entity_id)
+                    elif kelvin is not None:
+                        kelvin_list.append(entity_id)
+                    else:
+                        brightness_only_list.append(entity_id)
+
+        if rgb_list:
+            if red_hour and sleep_state:
+                tmp_red = 255
+                tmp_green = 0
+                tmp_blue = 0
+                rgb_service_data['brightness'] = int((self.max_brightness_level + self.min_brightness_level) / 2)
+                rgb_service_data['color_name'] = self.sleep_color
             else:
-                self.log('No state for {}.'.format(entity_id))
+                tmp_red, tmp_green, tmp_blue = self.rgb_color(desired_temp_kelvin)
+                rgb_service_data['rgb_color'] = [int(tmp_red), int(tmp_green), int(tmp_blue)]
+            rgb_service_data['entity_id'] = rgb_list
+            self.call_service("light/turn_on", **rgb_service_data)
+
+        if color_temp_list:
+            color_temp_service_data['entity_id'] = color_temp_list
+            color_temp_service_data['color_temp'] = desired_temp_mired
+            self.call_service("light/turn_on", **color_temp_service_data)
+
+        if kelvin_list:
+            kelvin_service_data['entity_id'] = kelvin_list
+            kelvin_service_data['kelvin'] = desired_temp_kelvin
+            self.call_service("light/turn_on", **kelvin_service_data)
+
+        if brightness_only_list:
+            brightness_only_service_data['entity_id'] = brightness_only_list
+            self.call_service("light/turn_on", **brightness_only_service_data)
