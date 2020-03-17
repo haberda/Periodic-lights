@@ -29,9 +29,9 @@ min_brightness_level | False | Max brightness level | 3 or 1 | Bit or percent
 color_temp_unit | False | Kelvin or mired color temp unit | kelvin | 
 color_temp_max | False | Maximum color temp | 4000 | kelvin
 color_temp_min | False | Min color temp | 2200 | kelvin
-disable_entity | False | List of entities that when active disable the functionality of this code | None | List
+disable_entity | False | List of entities that when active disable the functionality of this code. Can take a comma seperated condition rather than disable condition key below (e.g. input_boolean.party_mode,on) | None | List
 disable_condition | False | Override default condition check for disable_entity | on, True, or Home | Boolean or string
-sleep_entity | False | List of entities that track whether a 'sleep mode' has been enabled this immediatly brings lights to the lowest brightness and color temp defined | None | List
+sleep_entity | False | List of entities that track whether a 'sleep mode' has been enabled this immediatly brings lights to the lowest brightness and color temp defined. Can take a comma seperated condition rather than disable condition key below (e.g. input_boolean.sleep_mode,on) | None | List
 sleep_condition | False | Override default condition check for sleep_entity | on, True, or Home | Boolean or string
 red_hour | False | Time in format 'HH:MM:SS' during the start and stop times that the RGB lights turn red if sleep conditions are met | None | Time
 transition | False | Light transition time in seconds | 5 | Seconds
@@ -66,7 +66,7 @@ main_update_lights:
     - light.living_room_lamp_2
     - light.main_cabinets
     - light.mb_fan
-  brightness_threshold: 50
+  brightness_threshold: 25
   color_temp_max: 250
   color_temp_min: 500
   color_temp_unit: 'mired'
@@ -80,15 +80,16 @@ main_update_lights:
   red_hour: '21:00:00'
   start_time: sunset - 3:00:00
   end_time: sunrise + 2:00:00
-  start_index: sunset - 4:00:00
-  end_index: sunrise + 6:00:00
+  start_index: 17:00:00
+  end_index: 08:00:00
   transition: 5
   keep_lights_on: False
   stop_lights_off: True
   disable_entity: 
-    - input_boolean.party_mode
-    - input_boolean.hold_lights
-    - input_boolean.disco
+    - input_boolean.party_mode,on
+    - input_boolean.hold_lights,on
+    - input_boolean.disco,on
+    - sensor.arbitrary_sensor,arbitrary_condition
   sensor_log: sensor.main_lights
   
 exterior_update_lights:
@@ -100,7 +101,7 @@ exterior_update_lights:
     - light.group_exterior_garage
   min_brightness_level: 102
   start_time: sunset - 0:20:00
-  end_time: sunrise + 0:00:00
+  end_time: sunrise
   transition: 0
   start_lights_on: True
   stop_lights_off: True
