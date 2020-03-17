@@ -10,9 +10,9 @@ class update_lights(hass.Hass):
         now = datetime.datetime.now()
         #Import all user settings
         self.all_lights = self.args.get('entities', None)
-        self.disable_entity = list(self.args.get('disable_entity', None))
+        self.disable_entity = list(self.args.get('disable_entity', []))
         self.disable_condition = self.args.get('disable_condition', None)
-        self.sleep_entity = list(self.args.get('sleep_entity', None))
+        self.sleep_entity = list(self.args.get('sleep_entity', []))
         self.sleep_condition = self.args.get('sleep_condition', None)
         self.sleep_color = self.args.get('sleep_color', 'red')
         self.max_brightness_level = self.args.get('max_brightness_level', 255)
