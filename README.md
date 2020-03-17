@@ -80,8 +80,8 @@ main_update_lights:
   red_hour: '21:00:00'
   start_time: sunset - 3:00:00
   end_time: sunrise + 2:00:00
-  start_index: 17:00:00
-  end_index: 08:00:00
+  start_index: '17:00:00'
+  end_index: '08:00:00'
   transition: 5
   keep_lights_on: False
   stop_lights_off: True
