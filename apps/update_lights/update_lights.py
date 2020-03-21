@@ -3,34 +3,32 @@ import datetime
 from datetime import timedelta
 import math
 
-
-
 class update_lights(hass.Hass):
     def initialize(self):
         now = datetime.datetime.now()
         #Import all user settings
-        self.all_lights = self.args.get('entities', None)
+        self.all_lights = list(self.args.get('entities', []))
         self.disable_entity = list(self.args.get('disable_entity', []))
-        self.disable_condition = self.args.get('disable_condition', None)
+        self.disable_condition = list(self.args.get('disable_condition', []))
         self.sleep_entity = list(self.args.get('sleep_entity', []))
-        self.sleep_condition = self.args.get('sleep_condition', None)
-        self.sleep_color = self.args.get('sleep_color', 'red')
-        self.max_brightness_level = self.args.get('max_brightness_level', 255)
-        self.min_brightness_level = self.args.get('min_brightness_level', 3)
-        self.brightness_unit = self.args.get('brightness_unit', 'bit')
-        self.brightness_threshold = self.args.get('brightness_threshold', 255)
-        self.transition = self.args.get('transition', 5)
-        self.start_time = self.args.get('start_time', 'sunset')
-        self.end_time = self.args.get('end_time', 'sunrise')
-        self.red_hour = self.args.get('red_hour', None)        
-        self.start_index = self.args.get('start_index', self.start_time)
-        self.end_index = self.args.get('end_index', self.end_time)
-        self.color_temp_unit = self.args.get('color_temp_unit', 'kelvin')
-        self.color_temp_max = self.args.get('color_temp_max', 4000)
-        self.color_temp_min = self.args.get('color_temp_min', 2200)
-        self.keep_lights_on = self.args.get('keep_lights_on', False)
-        self.start_lights_on = self.args.get('start_lights_on', False)
-        self.stop_lights_off = self.args.get('stop_lights_off', False)
+        self.sleep_condition = list(self.args.get('sleep_condition', []))
+        self.sleep_color = str(self.args.get('sleep_color', 'red'))
+        self.max_brightness_level = int(self.args.get('max_brightness_level', 255))
+        self.min_brightness_level = int(self.args.get('min_brightness_level', 3))
+        self.brightness_unit = str(self.args.get('brightness_unit', 'bit'))
+        self.brightness_threshold = int(self.args.get('brightness_threshold', 255))
+        self.transition = int(self.args.get('transition', 5))
+        self.start_time = str(self.args.get('start_time', 'sunset'))
+        self.end_time = str(self.args.get('end_time', 'sunrise'))
+        self.red_hour = str(self.args.get('red_hour', 'None'))
+        self.start_index = str(self.args.get('start_index', self.start_time))
+        self.end_index = str(self.args.get('end_index', self.end_time))
+        self.color_temp_unit = str(self.args.get('color_temp_unit', 'kelvin'))
+        self.color_temp_max = int(self.args.get('color_temp_max', 4000))
+        self.color_temp_min = int(self.args.get('color_temp_min', 2200))
+        self.keep_lights_on = bool(self.args.get('keep_lights_on', False))
+        self.start_lights_on = bool(self.args.get('start_lights_on', False))
+        self.stop_lights_off = bool(self.args.get('stop_lights_off', False))
 
         #Basic error checking
         if not isinstance(self.transition, int) or self.transition > 300:
@@ -68,7 +66,7 @@ class update_lights(hass.Hass):
         else:
             self.stop_lights_off = False
 
-        #Set callbacks for time interval, and subscribe to individual lights and disable entities
+        #Set callbacks for time interval, and subscribe to individual lights and disable/sleep entities
         interval = int(self.args.get('run_every', 60))
         target = now + timedelta(seconds=interval)
         if self.all_lights is not None:
@@ -192,11 +190,9 @@ class update_lights(hass.Hass):
         return int(desired_temp_kelvin), int(desired_temp_mired)
 
     def rgb_color(self, desired_temp):
-
         ###########################
         #Color temp to rgb copied from HASS color utils
         ###########################
-
         desired_temp=desired_temp/100
 
         if desired_temp <= 66:
@@ -256,10 +252,14 @@ class update_lights(hass.Hass):
         return brightness_level
 
     def red_hour_query (self):
-        if self.red_hour is not None:
-            if self.now_is_between(self.red_hour, self.end_time):
-                return True
-            else:
+        if self.red_hour is not 'None':
+            try:
+                if self.now_is_between(self.red_hour, self.end_time):
+                    return True
+                else:
+                    return False
+            except:
+                self.log('Red hour time string malformed')
                 return False
         else:
             return False
@@ -268,7 +268,7 @@ class update_lights(hass.Hass):
         value = False
         condition_states = ['on', 'Home', 'home', 'True', 'true']
         if condition is not None:
-            condition_states.append(condition.split(','))
+            condition_states.append(condition)
         if entities is not None:
             for entity in entities:
                 if len(entity.split(',')) > 1:
