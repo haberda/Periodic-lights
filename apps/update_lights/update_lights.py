@@ -7,11 +7,11 @@ class update_lights(hass.Hass):
     def initialize(self):
         now = datetime.datetime.now()
         #Import all user settings
-        self.all_lights = list(self.args.get('entities', []))
-        self.disable_entity = list(self.args.get('disable_entity', []))
-        self.disable_condition = list(self.args.get('disable_condition', []))
-        self.sleep_entity = list(self.args.get('sleep_entity', []))
-        self.sleep_condition = list(self.args.get('sleep_condition', []))
+        self.all_lights = self.args.get('entities', [])
+        self.disable_entity = self.args.get('disable_entity', [])
+        self.disable_condition = self.args.get('disable_condition', [])
+        self.sleep_entity = self.args.get('sleep_entity', [])
+        self.sleep_condition = self.args.get('sleep_condition', [])
         self.sleep_color = str(self.args.get('sleep_color', 'red'))
         self.max_brightness_level = int(self.args.get('max_brightness_level', 255))
         self.min_brightness_level = int(self.args.get('min_brightness_level', 3))
@@ -30,6 +30,17 @@ class update_lights(hass.Hass):
         self.start_lights_on = bool(self.args.get('start_lights_on', False))
         self.stop_lights_off = bool(self.args.get('stop_lights_off', False))
 
+        if isinstance(self.all_lights, str):
+            self.all_lights = self.all_lights.split(',')
+        if isinstance(self.disable_entity, str):
+            self.disable_entity = self.disable_entity.split('*')
+        if isinstance(self.disable_condition, str):
+            self.disable_condition = self.disable_condition.split(',')
+        if isinstance(self.sleep_entity, str):
+            self.sleep_entity = self.sleep_entity.split('*')
+        if isinstance(self.sleep_condition, str):
+            self.sleep_condition = self.sleep_condition.split(',')
+
         #Basic error checking
         if not isinstance(self.transition, int) or self.transition > 300:
             self.transition = 5
@@ -45,9 +56,6 @@ class update_lights(hass.Hass):
             self.max_brightness_level = 255
         if not isinstance(self.min_brightness_level, int) or self.min_brightness_level > 255 or self.min_brightness_level > self.max_brightness_level:
             self.min_brightness_level = 3
-
-        if isinstance(self.all_lights, str):
-            self.all_lights = self.all_lights.split(',')
 
         if self.keep_lights_on or str(self.keep_lights_on).lower() == 'true':
             self.keep_lights_on = True
