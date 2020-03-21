@@ -41,7 +41,7 @@ keep_lights_on | False | Forces the light to turn on, in other words ignores tha
 start_lights_on | False | Turn on the lights at the start time | False | Boolean
 stop_lights_off | False | Turn off the lights at the stop time | False | Boolean
 
-AppDaemon constraints can be used as well, see AppDaemon API Docs https://appdaemon.readthedocs.io/en/latest/APPGUIDE.htmlcallback-constraints
+AppDaemon constraints can be used as well, see AppDaemon API Docs https://appdaemon.readthedocs.io/en/latest/APPGUIDE.html#callback-constraints
 
 ## Example apps.yaml:
 
