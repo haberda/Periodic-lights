@@ -119,13 +119,17 @@ class update_lights(hass.Hass):
 
     def lights_on(self, kwargs):
         #Turn on all lights
-        for entity in self.all_lights:
-            self.turn_on(entity)
+        check = self.condition_query(self.disable_entity, self.disable_condition)
+        if not check:
+            for entity in self.all_lights:
+                self.turn_on(entity)
 
     def lights_off(self, kwargs):
         #Turn off all lights
-        for entity in self.all_lights:
-            self.turn_off(entity)
+        check = self.condition_query(self.disable_entity, self.disable_condition)
+        if not check:
+            for entity in self.all_lights:
+                self.turn_off(entity)
 
     def pct(self):
         ##########################
