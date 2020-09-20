@@ -26,9 +26,11 @@ class update_lights(hass.Hass):
         self.color_temp_unit = str(self.args.get('color_temp_unit', 'kelvin'))
         self.color_temp_max = int(self.args.get('color_temp_max', 4000))
         self.color_temp_min = int(self.args.get('color_temp_min', 2200))
+        self.watch_light_state = bool(self.args.get('watch_light_state', True))
         self.keep_lights_on = bool(self.args.get('keep_lights_on', False))
         self.start_lights_on = bool(self.args.get('start_lights_on', False))
         self.stop_lights_off = bool(self.args.get('stop_lights_off', False))
+        self.event = self.args.get('event_subscription', None)
 
         if isinstance(self.all_lights, str):
             self.all_lights = self.all_lights.split(',')
@@ -88,15 +90,29 @@ class update_lights(hass.Hass):
                     if len(entity.split(',')) > 1:
                         entity = entity.split(',')[0]
                     self.listen_state(self.state_change, entity)
-            for light in self.all_lights:
-                self.listen_state(self.state_change, light)
-            self.run_every(self.time_change, target, interval)
+            if self.watch_light_state:
+                for light in self.all_lights:
+                    self.listen_state(self.state_change, light)
+            if interval > 0:
+                self.run_every(self.time_change, target, interval)
+            if self.event is not None:
+                self.listen_event(self.event_subscription, self.event)
         else:
             self.log('No lights defined', log='error_log')
 
     def time_change(self, kwargs):
         threshold = self.brightness_threshold
         transition = self.transition
+        entities = self.all_lights
+        self.adjust_light(entities, threshold, transition)
+
+    def event_subscription(self, event, data, kwargs):
+        threshold = 255
+        if 'threshold' in data:
+            threshold = data['threshold']
+        transition = 0
+        if 'transition' in data:
+            transition = data['transition']
         entities = self.all_lights
         self.adjust_light(entities, threshold, transition)
 
