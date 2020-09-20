@@ -2,7 +2,7 @@
 ## This code acts on a list of lights to primarily do two things: 
 
 1) Gradually change the brightness level and the color temperature of the lights from the start to end time ONLY if the lights are currently on
-2) When a light in the list is turned on and its brightness is not equal to the current level it immediately changes the settings to match other lights
+2) When a light in the list is turned on and its brightness is not equal to the current level it immediately changes the settings to match other lights (if watch_light_state is True)
 
 What makes this code different than others (namely custom component Circadian Lighting or Flux component) is the implementation of change thresholds; 
 so if someone manually adjusts a light outside of the threshold range the code will skip that light.
@@ -17,7 +17,8 @@ Options:
 Key | Required | Description | Default | Unit
 ------------ | ------------- | ------------- | ------------- | -------------
 entities | True | List of lights | None | List
-run_every | False | Time interval in seconds to run the code | 60 | Seconds
+run_every | False | Time interval in seconds to run the code, set to 0 to disable time-based updates | 60 | Seconds
+event_subscription | False | Home-assistant event to listen for, forces lights to update, can take transition and threshold variables | None | string
 start_time | False | Time in format 'HH:MM:SS' to start; also can be 'sunset - HH:MM:SS' | sunset | Time
 end_time | False | Time in format 'HH:MM:SS' to start; also can be 'sunrise - HH:MM:SS' | sunrise | Time
 start_index  | False | With this option you can push the middle point left or right and increase or decrease the brightness change gradient and point of minimum brightness/temp, takes time the same was as start/end times | None | Time
@@ -37,9 +38,11 @@ red_hour | False | Time in format 'HH:MM:SS' during the start and stop times tha
 transition | False | Light transition time in seconds | 5 | Seconds
 companion_script | False | Script to execute before changing lights, useful to force Zwave lights to update state | None | 
 sensor_log | False | Creates a sensor to track the dimming percentage, mostly for diagnostic purposes, format: sensor.my_sensor | None | 
+watch_light_state | False | Whether or not to watch individual lights and adjust them when they are turned on | True | Boolean
 keep_lights_on | False | Forces the light to turn on, in other words ignores that it is off | False | Boolean
 start_lights_on | False | Turn on the lights at the start time | False | Boolean
 stop_lights_off | False | Turn off the lights at the stop time | False | Boolean
+
 
 AppDaemon constraints can be used as well, see AppDaemon API Docs https://appdaemon.readthedocs.io/en/latest/APPGUIDE.html#callback-constraints
 
@@ -50,6 +53,7 @@ main_update_lights:
   module: update_lights
   class: update_lights
   run_every: 180
+  event_subscription: main_update_lights
   entities:
     - light.back_hallway
     - light.coffee_bar
@@ -85,6 +89,7 @@ main_update_lights:
   transition: 5
   keep_lights_on: False
   stop_lights_off: True
+  watch_light_state: False
   disable_entity: 
     - input_boolean.party_mode,on
     - input_boolean.hold_lights,on
@@ -105,4 +110,14 @@ exterior_update_lights:
   transition: 0
   start_lights_on: True
   stop_lights_off: True
+```
+## Example script/automation for event subscription:
+```
+script:
+- force_light_update:
+    sequence:
+      - event: main_update_lights
+        event_data:
+          threshold: 255
+          transition: 0
 ```
