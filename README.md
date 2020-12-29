@@ -60,7 +60,15 @@ This is a fine tuning feature that allows for the lights to be dimmer or brighte
 
 This should be tested by setting up a template light not connected to anything and observing the behavior to see if the desired result is achieved.
 
-Check back here in a couple of days for a plot showing this behavior.
+This is an example of the behavior of the light brighness with sunset->sunrise start and end times and the index settings below:
+
+![index_demo.png](index_demo.png)
+
+```
+  start_index: sunset + 02:00:00
+  end_index: sunrise - 02:00:00
+```
+Note the step change in brightness at the start and end times as the code switches from one mid-point to another, and the two hour minimum point in the middle of the night.
 
 ## Example apps.yaml:
 
