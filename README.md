@@ -32,7 +32,7 @@ sleep_color | False | Color in string format (e.g. 'red') | red | String
 transition | False | Light transition time in seconds | 5 | Seconds
 companion_script | False | Script to execute before changing lights, useful to force Zwave lights to update state | None | 
 sensor_log | False | Creates a sensor to track the dimming percentage, mostly for diagnostic purposes, format: sensor.my_sensor | None | 
-sensor_only | False | Only creates a sensor that tracks the brightness and color temperature, will not adjust lights. | None |
+sensor_only | False | Only creates a sensor that tracks the brightness and color temperature, will not adjust lights. | False | Boolean
 watch_light_state | False | Whether or not to watch individual lights and adjust them when they are turned on | True | Boolean
 keep_lights_on | False | Forces the light to turn on, in other words ignores that it is off | False | Boolean
 start_lights_on | False | Turn on the lights at the start time | False | Boolean
