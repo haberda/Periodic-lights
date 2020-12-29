@@ -2,7 +2,7 @@
 
 ## Introduction
 
-Periodic lights (formally update lights) is an automatic light brightness and color temperature adjustment tool for AppDaemon. This code will act on a provided list of lights to keep them in sync with the current light parameters. What makes this app different from others (namely custom components Circadian Lighting, Adaptive Lighting or the built-in Flux component) is the implementation of change thresholds; this allows manual adjustment of a light outside of the threshold range that the app will then ignore, until and unless the light is either manually adjusted to the current threshold range, or the light is toggled. The brightness/color temp is calculated by determining how far from the middle point of the start and end time the current time is. All lights can be mixed e.g. you can have a list with RGB, color temp, and brightness only lights together There are numerous options that can be configured to adjust the gradient of the change and constrain whether or not the app is active
+Periodic lights (formally update lights) is an automatic light brightness and color temperature adjustment tool for AppDaemon. This code will act on a provided list of lights to keep them in sync with the current light parameters. What makes this app different from others (namely custom components Circadian Lighting, Adaptive Lighting or the built-in Flux component) is the implementation of brightness change thresholds; this allows for manual adjustment of a light outside of the threshold range that the app will then ignore until and unless the light is either manually adjusted to the current threshold range, or the light is toggled. The brightness/color temperature is calculated by determining how far from the middle point of the start and end time the current time is. All light types can be mixed (e.g. you can have a list with RGB, color temp, and brightness only lights together). There are numerous options that can be configured to suit your needs.
 
 ## Options:
 ---
@@ -42,13 +42,13 @@ AppDaemon constraints can be used as well, see AppDaemon API Docs https://appdae
 
 ## Algorithm explanation
 
-This works by calculating the time that occurs exactly in the middle of the start_time and end_time. The current time is then compared to the middle point to determine at what point in the day the current time is relative to the middle point. This is then fit to a sin function (running from 0-1, aka sin from 0 to pi). This returns a percentage, if your defined light percentage is from 0-100 then the direct reading from the sin function will be used. In practice this is calculated by:  
+This app works by calculating the time that occurs exactly in the middle of the start_time and end_time. The current time is then compared to the middle point to determine at what point in the day the current time is relative to the middle point. This is then fit to a sin function (running from 0 to pi in the x direction). This returns a percentage, if your defined light brightness is from 0-100 then the direct reading from the sin function will be used. In practice this is calculated by:  
 
 ![equation.png](equation.png)
 
 The color temperature is calculated the same way as the brightness.
 
-The values are updated 24 hours a day, therefore, setting the run_every variable to a very short time will not result in the lights updating faster. There are 256 brightness bit values, assuming the maximum is set to 100% brightness and the minimum is set to 0%. This means there are only 512 brightness steps that can be taken in 1 day, or in other words, about 1 every 3 minutes. Therefore, in terms of brightness, the app should be set to update about once every 3 minutes. A similar calculation can be made for color temperature, assuming the default range. Using the default settings, the brightness of the lights would look like this over the course of a day:
+The values are updated 24 hours a day, therefore, setting the run_every variable to a very short time will not result in the lights updating faster. There are 256 brightness bit values, assuming the maximum is set to 100% brightness and the minimum is set to 0%. This means there are only 512 brightness steps that can be taken in 1 day, or in other words, about 1 every 3 minutes. Therefore, in terms of brightness, the app should be set to update about once every 3 minutes. A similar calculation can be made for color temperature, assuming the default range in mired. Using the default settings, the brightness of the lights would look like this over the course of a day:
 
 ![default_settings.png](default_settings.png)
 
@@ -60,10 +60,12 @@ This is a fine tuning feature that allows for the lights to be dimmer or brighte
 
 This should be tested by setting up a template light not connected to anything and observing the behavior to see if the desired result is achieved.
 
+Check back here in a couple of days for a plot showing this behavior.
+
 ## Example apps.yaml:
 
 ```
-main_update_lights:
+main_periodic_lights:
   module: update_lights
   class: update_lights
   run_every: 180
@@ -111,7 +113,7 @@ main_update_lights:
     - sensor.arbitrary_sensor,arbitrary_condition
   sensor_log: sensor.main_lights
   
-exterior_update_lights:
+exterior_periodic_lights:
   module: update_lights
   class: update_lights
   run_every: 180
@@ -132,8 +134,18 @@ exterior_update_lights:
 script:
 - force_light_update:
     sequence:
-      - event: main_update_lights
+      - event: main_periodic_lights
         event_data:
           threshold: 255
           transition: 0
+```
+## Example sensor only configuration:
+```
+sensor_only_periodic_lights:
+  module: update_lights
+  class: update_lights
+  run_every: 30
+  sensor_only: True
+  start_index: sunset + 02:00:00
+  end_index: sunrise - 02:00:00
 ```
