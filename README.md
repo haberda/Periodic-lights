@@ -68,7 +68,7 @@ This is an example of the behavior of the light brighness with sunset->sunrise s
   start_index: sunset + 02:00:00
   end_index: sunrise - 02:00:00
 ```
-Note the step change in brightness at the start and end times as the code switches from one mid-point to another, and the two hour minimum point in the middle of the night.
+Note the step change in brightness at the start and end times as the code switches from one mid-point to another, and the two hour minimum point in the middle of the night. The brightness step change should be accounted for in your threshold settings if you want the lights that are on to smoothly transition at that point. In the case of this example the step change is about 15%, therefore a brightness threshold above 15% should be sufficient to account for this change.
 
 ## Example apps.yaml:
 
