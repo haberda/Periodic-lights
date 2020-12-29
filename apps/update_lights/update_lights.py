@@ -20,17 +20,28 @@ class update_lights(hass.Hass):
         self.transition = int(self.args.get('transition', 5))
         self.start_time = str(self.args.get('start_time', 'sunset'))
         self.end_time = str(self.args.get('end_time', 'sunrise'))
-        self.red_hour = str(self.args.get('red_hour', 'None'))
+        self.red_hour = self.args.get('red_hour', None)
         self.start_index = str(self.args.get('start_index', self.start_time))
         self.end_index = str(self.args.get('end_index', self.end_time))
         self.color_temp_unit = str(self.args.get('color_temp_unit', 'kelvin'))
         self.color_temp_max = int(self.args.get('color_temp_max', 4000))
         self.color_temp_min = int(self.args.get('color_temp_min', 2200))
-        self.watch_light_state = bool(self.args.get('watch_light_state', True))
-        self.keep_lights_on = bool(self.args.get('keep_lights_on', False))
-        self.start_lights_on = bool(self.args.get('start_lights_on', False))
-        self.stop_lights_off = bool(self.args.get('stop_lights_off', False))
+        self.watch_light_state = self.args.get('watch_light_state', True)
+        self.keep_lights_on = self.args.get('keep_lights_on', False)
+        self.start_lights_on = self.args.get('start_lights_on', False)
+        self.stop_lights_off = self.args.get('stop_lights_off', False)
+        self.sensor_only = self.args.get('sensor_only', False)
         self.event = self.args.get('event_subscription', None)
+
+        interval = int(self.args.get('run_every', 180))
+        target = now + timedelta(seconds=interval)
+
+        if self.sensor_only and self.sensor_only != 'false':
+            #Sensor only is specified
+            self.run_every(self.time_change, target, interval)
+            return
+        else:
+            self.sensor_only = False
 
         if isinstance(self.all_lights, str):
             self.all_lights = self.all_lights.split(',')
@@ -59,26 +70,26 @@ class update_lights(hass.Hass):
         if not isinstance(self.min_brightness_level, int) or self.min_brightness_level > 255 or self.min_brightness_level > self.max_brightness_level:
             self.min_brightness_level = 3
 
-        if self.keep_lights_on or str(self.keep_lights_on).lower() == 'true':
-            self.keep_lights_on = True
-        else:
+        if str(self.keep_lights_on).lower() == 'false':
             self.keep_lights_on = False
+        else:
+            self.keep_lights_on = True
 
-        if self.start_lights_on or str(self.start_lights_on).lower() == 'true':
+        if str(self.start_lights_on).lower() == 'false':
+            self.start_lights_on = False
+        else:
             self.start_lights_on = True
             self.run_daily(self.lights_on, self.parse_time(self.start_time))
-        else:
-            self.start_lights_on = False
 
-        if self.stop_lights_off or str(self.stop_lights_off).lower() == 'true':
+        if str(self.stop_lights_off).lower() == 'false':
+            self.stop_lights_off = False
+        else:
             self.stop_lights_off = True
             self.run_daily(self.lights_off, self.parse_time(self.end_time))
-        else:
-            self.stop_lights_off = False
+
 
         #Set callbacks for time interval, and subscribe to individual lights and disable/sleep entities
-        interval = int(self.args.get('run_every', 60))
-        target = now + timedelta(seconds=interval)
+
         if self.all_lights is not None:
             if self.disable_entity is not None:
                 for entity in self.disable_entity:
@@ -92,7 +103,7 @@ class update_lights(hass.Hass):
                     self.listen_state(self.state_change, entity)
             if self.watch_light_state:
                 for light in self.all_lights:
-                    self.listen_state(self.state_change, light)
+                    self.listen_state(self.state_change, light, oneshot = True)
             if interval > 0:
                 self.run_every(self.time_change, target, interval)
             if self.event is not None:
@@ -119,8 +130,10 @@ class update_lights(hass.Hass):
     def state_change(self, entity, attribute, old, new, kwargs):
         threshold = 255
         transition = 0
-        if entity in self.all_lights and new == "on":
-            self.adjust_light(entity, threshold, transition)
+        if entity in self.all_lights:
+            if new == "on":
+                self.adjust_light(entity, threshold, transition)
+            self.run_in(self.resubscribe, 2, entity = entity)
             return
         if self.disable_entity is not None:
             for check_entity in self.disable_entity:
@@ -132,6 +145,9 @@ class update_lights(hass.Hass):
                 if entity == check_entity.split(',')[0]:
                     self.adjust_light(self.all_lights, threshold, transition)
                     return
+
+    def resubscribe (self, kwargs):
+        self.listen_state(self.state_change, kwargs['entity'], oneshot = True)
 
     def lights_on(self, kwargs):
         #Turn on all lights
@@ -154,45 +170,51 @@ class update_lights(hass.Hass):
         dt = datetime.datetime.now()
         now_time = dt.timestamp()
 
-        start_ts = datetime.datetime.combine(self.date(), self.parse_time(self.start_time))
-        end_ts = datetime.datetime.combine(self.date(), self.parse_time(self.end_time))
+        start = datetime.datetime.combine(self.date(), self.parse_time(self.start_time))
+        end = datetime.datetime.combine(self.date(), self.parse_time(self.end_time))
         midnight = '0:00:00'
 
-        if self.now_is_between(self.start_time, self.end_time):
-            #We are in between the start and end times
-            if self.now_is_between(midnight, self.end_time) and int(start_ts.timestamp()) > int(end_ts.timestamp()):
-                #We are past midnight and the start time was the day before
-                start_ts = start_ts + timedelta(days=-1)
-            elif int(start_ts.timestamp()) > int(end_ts.timestamp()):
-                #We are before midnight and the end time is after midnight
-                end_ts = end_ts + timedelta(days=1)
+        if self.now_is_between(midnight, self.end_time) and not self.now_is_between(self.start_time, midnight):
+            #We are past midnight and the start time was the day before
+            self.log('Time delta start -1 day')
+            start = start + timedelta(days=-1)
+        elif self.now_is_between(self.end_time, midnight) and start > end:
+            #We are before midnight and the end time is after midnight
+            self.log('Time delta end +1 day')
+            end = end + timedelta(days=1)
+        #Get index times
+        start_i = datetime.datetime.combine(start.date(), self.parse_time(self.start_index))
+        end_i = datetime.datetime.combine(end.date(), self.parse_time(self.end_index))
+        if start_i > end_i:
+            #End is before midnight but end index is after
+            end_i = end_i + timedelta(days=1)
+        #Figure out midpoint
+        half_seconds = (end - start).total_seconds() / 2
+        half = start + timedelta(seconds=half_seconds)
+        #Figure out start index midpoint
+        half_seconds = (end - start_i).total_seconds() / 2
+        midpoint_start = start_i + timedelta(seconds=half_seconds)
+        #Figure out end index midpoint
+        half_seconds = (end_i - start).total_seconds() / 2
+        midpoint_end = start + timedelta(seconds=half_seconds)
 
-        start_i_ts = datetime.datetime.combine(start_ts.date(), self.parse_time(self.start_index))
-        end_i_ts = datetime.datetime.combine(end_ts.date(), self.parse_time(self.end_index))
-
-        start_ts = int(start_ts.timestamp())
-        end_ts = int(end_ts.timestamp())
-        start_i_ts = int(start_i_ts.timestamp())
-        end_i_ts = int(end_i_ts.timestamp())
         #Calculate the midpoint between start and end time incorpertaing the indexed times
-        midpoint_start = (start_i_ts + end_ts) / 2
-        midpoint_end = (start_ts + end_i_ts) / 2
-        if now_time < midpoint_start:
-            midpoint = midpoint_start
-        else:
-            midpoint = midpoint_end
-        
-        if now_time < start_ts and now_time > end_ts:
-            #We are outside of the start and end time so 0 dimming
+        if (dt > midpoint_start and dt < midpoint_end) or (dt < midpoint_start and dt > midpoint_end):
+            self.log('In the middle of the midpoints')
             pct = 0
+        # elif self.now_is_between(self.end_time, self.start_time):
+        #     midpoint = half.timestamp()
         else:
-            if now_time < midpoint:
-                #We are after start time but before midpoint (ramp down)
-                pct = float((now_time - start_ts) / (midpoint - start_ts))
+            if dt < midpoint_start:
+                # midpoint = midpoint_start.timestamp()
+                midpoint = midpoint_end.timestamp()
             else:
-                #We are after midpoint but before end time (ramp up)
-                pct = 1 - float((now_time - midpoint) / (end_ts - midpoint))
-        return pct
+                midpoint = midpoint_start.timestamp()
+                # midpoint = midpoint_end.timestamp()
+
+            pct = abs(float(math.sin(math.pi*((now_time - midpoint) / (86400)))))
+
+        return pct, half, midpoint_start, midpoint_end
 
     def color(self, pct):
         color_max = self.color_temp_max
@@ -211,7 +233,7 @@ class update_lights(hass.Hass):
 
         if sleep_state == False:
             #Calculate desired color temp
-            desired_temp_kelvin = round(int(color_max) - (abs(int(color_max) - int(color_min))* float(pct)))
+            desired_temp_kelvin = round(int(color_min) + (abs(int(color_max) - int(color_min))* float(pct)))
         else:
             desired_temp_kelvin = color_min
         desired_temp_mired = self.color_temperature_kelvin_to_mired(desired_temp_kelvin)
@@ -260,27 +282,27 @@ class update_lights(hass.Hass):
         elif tmp_blue > 255:
             tmp_blue = 255
         return tmp_red, tmp_green, tmp_blue
-        
+
     def brightness(self, pct):
         max_brightness_level = self.max_brightness_level
         min_brightness_level = self.min_brightness_level
         brightness_unit = self.brightness_unit
 
         #Calculate brightness level in the defined range
-        brightness_level = int(max_brightness_level) - round(int(max_brightness_level - min_brightness_level) * pct)
+        brightness_level = int(min_brightness_level) + round(int(max_brightness_level - min_brightness_level) * pct)
 
         sleep_state = self.condition_query(self.sleep_entity, self.sleep_condition)
 
         if int(brightness_level) > int(max_brightness_level) and sleep_state != True:
             #If we are above 255 correct for that
-            brightness_level = int(max_brightness_level)
+            return int(max_brightness_level)
         elif int(brightness_level) < int(min_brightness_level) or sleep_state == True:
             #If we are below min or are in sleep state
             return int(min_brightness_level)
         return brightness_level
 
     def red_hour_query (self):
-        if self.red_hour is not 'None':
+        if self.red_hour is not None:
             try:
                 if self.now_is_between(self.red_hour, self.end_time):
                     return True
@@ -315,25 +337,32 @@ class update_lights(hass.Hass):
         return math.floor(1000000 / kelvin_temperature)
 
     def adjust_light(self, entities, threshold, transition):
-
-        override = self.condition_query(self.disable_entity, self.disable_condition)
-
-        if override:
-            return None
-
-        if 'companion_script' in self.args:
-            self.turn_on(entity_id=self.args['companion_script'])
-
-        dt = datetime.datetime.now()
-
-        pct = self.pct()
-
-        if 'sensor_log' in self.args:
-            self.set_state(self.args['sensor_log'], state=(pct*100),  attributes = {"unit_of_measurement":"%", "note":"Percentage of dimming, inverted to brightness percent"})
-
+        #Calculate our percentage and midpoints
+        pct, half, midpoint_start, midpoint_end = self.pct()
+        #Calculate brightness and temp based on percentage
         brightness_level = self.brightness(pct)
         desired_temp_kelvin, desired_temp_mired = self.color(pct)
+        tmp_red, tmp_green, tmp_blue = self.rgb_color(desired_temp_kelvin)
+        #Output sensor log
+        if 'sensor_log' in self.args:
+            sensor_log = self.args['sensor_log']
+            # self.set_state(self.args['sensor_log'], state=(pct*100),  attributes = {"unit_of_measurement":"%", "note":"Percentage of dimming, inverted to brightness percent"})
+        else:
+            sensor_log = 'sensor.' + self.name
+        self.set_state(sensor_log, state=(pct*100),  attributes = {"unit_of_measurement":"%", "note":"Light brightness", "Kelvin temperature": desired_temp_kelvin, "Mired temperature": desired_temp_mired, "RGB": [tmp_red, tmp_green, tmp_blue], "Midpoint": half, "Start index midpoint": midpoint_start, "End index midpoint": midpoint_end})
+
+        #Check if any disable entities are blocking
+        override = self.condition_query(self.disable_entity, self.disable_condition)
+
+        if override or self.sensor_only:
+            return None
+
+        #Run companion script if defined
+        if 'companion_script' in self.args:
+            self.turn_on(entity_id=self.args['companion_script'])
+        #Check if sleep conditions are met
         sleep_state = self.condition_query(self.sleep_entity, self.sleep_condition)
+        #Check if red hour conditions are met
         red_hour = self.red_hour_query()
 
         ##########################
@@ -346,15 +375,16 @@ class update_lights(hass.Hass):
         kelvin_list = []
         rgb_list = []
         brightness_only_list = []
-
+        #Create service data structures for each light type
         rgb_service_data = {"brightness": brightness_level, "transition": transition}
         color_temp_service_data = {"brightness": brightness_level, "transition": transition}
         kelvin_service_data = {"brightness": brightness_level, "transition": transition}
         brightness_only_service_data = {"brightness": brightness_level, "transition": transition}
 
         for entity_id in entities:
+            #Loop through lights, checking the condition for each one. Append each compliant light to a list depending on what type of adjustment the light is capable of.
             cur_state = self.get_state(entity_id)
-            if (cur_state == 'on' or self.keep_lights_on):
+            if (cur_state == 'on' or (self.keep_lights_on and self.now_is_between(self.start_time, self.end_time))):
                 brightness = self.get_state(entity_id, attribute="brightness")
                 if (brightness is not None and (abs(int(brightness) - int(brightness_level)) < int(threshold)) and int(brightness) != int(brightness_level)) or self.keep_lights_on or (red_hour and sleep_state):
                     color_temp = self.get_state(entity_id, attribute='color_temp')
@@ -374,10 +404,9 @@ class update_lights(hass.Hass):
                 tmp_red = 255
                 tmp_green = 0
                 tmp_blue = 0
-                rgb_service_data['brightness'] = int((self.max_brightness_level + self.min_brightness_level) / 2)
+                # rgb_service_data['brightness'] = int((self.max_brightness_level + self.min_brightness_level) / 2)
                 rgb_service_data['color_name'] = self.sleep_color
             else:
-                tmp_red, tmp_green, tmp_blue = self.rgb_color(desired_temp_kelvin)
                 rgb_service_data['rgb_color'] = [int(tmp_red), int(tmp_green), int(tmp_blue)]
             rgb_service_data['entity_id'] = rgb_list
             self.call_service("light/turn_on", **rgb_service_data)
