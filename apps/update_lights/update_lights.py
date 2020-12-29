@@ -349,7 +349,7 @@ class update_lights(hass.Hass):
             # self.set_state(self.args['sensor_log'], state=(pct*100),  attributes = {"unit_of_measurement":"%", "note":"Percentage of dimming, inverted to brightness percent"})
         else:
             sensor_log = 'sensor.' + self.name
-        self.set_state(sensor_log, state=(pct*100),  attributes = {"unit_of_measurement":"%", "note":"Light brightness", "Kelvin temperature": desired_temp_kelvin, "Mired temperature": desired_temp_mired, "RGB": [tmp_red, tmp_green, tmp_blue], "Midpoint": half, "Start index midpoint": midpoint_start, "End index midpoint": midpoint_end})
+        self.set_state(sensor_log, state=(brightness_level/2.55),  attributes = {"unit_of_measurement":"%", "note":"Light brightness", "Kelvin temperature": desired_temp_kelvin, "Mired temperature": desired_temp_mired, "RGB": [tmp_red, tmp_green, tmp_blue], "Midpoint": half, "Start index midpoint": midpoint_start, "End index midpoint": midpoint_end})
 
         #Check if any disable entities are blocking
         override = self.condition_query(self.disable_entity, self.disable_condition)
