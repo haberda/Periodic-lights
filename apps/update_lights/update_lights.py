@@ -173,8 +173,9 @@ class update_lights(hass.Hass):
         start = datetime.datetime.combine(self.date(), self.parse_time(self.start_time))
         end = datetime.datetime.combine(self.date(), self.parse_time(self.end_time))
         midnight = '0:00:00'
-
-        if self.now_is_between(midnight, self.end_time) and not self.now_is_between(self.start_time, midnight):
+        if end > start and (self.now_is_between(self.end_time, self.start_time) or self.now_is_between(midnight, self.end_time)):
+            self.log('Start and end occur in the same day. No time delta.')
+        elif self.now_is_between(midnight, self.end_time) and not self.now_is_between(self.start_time, midnight):
             #We are past midnight and the start time was the day before
             self.log('Time delta start -1 day')
             start = start + timedelta(days=-1)
