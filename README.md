@@ -58,7 +58,7 @@ Both brightness and color temperature are subject to the ranges provided by the 
 
 This is a fine tuning feature that allows for the lights to be dimmer or brighter close to the start or end than they otherwise would by extending the middle-point. Using these effectively creates two middle points during the start and end window. A start_index value effects the result after the middle point, an end_index effects the result before the middle-point. If the lights are watched closely one would observe the lights dim to the lowest point from the start->middlepoint1 then hold at the minimum between middlepoint1->middlepoint2; after middlepoint2 the lights will become brighter as usual.
 
-This should be tested by setting up a template light not connected to anything and observing the behavior to see if the desired result is achieved.
+This should be tested by setting up a sensor only configuration and observing the behavior to see if the desired result is achieved.
 
 This is an example of the behavior of the light brighness with sunset->sunrise start and end times and the index settings below:
 
