@@ -4,7 +4,7 @@
 
 Periodic lights (formally update lights) is an automatic light brightness and color temperature adjustment tool for AppDaemon. This code will act on a provided list of lights to keep them in sync with the current light parameters. What makes this app different from others (namely custom components Circadian Lighting, Adaptive Lighting or the built-in Flux component) is the implementation of brightness change thresholds; this allows for manual adjustment of a light outside of the threshold range that the app will then ignore until and unless the light is either manually adjusted to the current threshold range, or the light is toggled. The brightness/color temperature is calculated by determining how far from the middle point of the start and end time the current time is. All light types can be mixed (e.g. you can have a list with RGB, color temp, and brightness only lights together). There are numerous options that can be configured to suit your needs.
 
-## Options:
+## Options
 ---
 
 Key | Required | Description | Default | Unit
@@ -70,7 +70,11 @@ This is an example of the behavior of the light brighness with sunset->sunrise s
 ```
 Note the step change in brightness at the start and end times as the code switches from one mid-point to another, and the two hour minimum point in the middle of the night. The brightness step change should be accounted for in your threshold settings if you want the lights that are on to smoothly transition at that point. In the case of this example the step change is about 15%, therefore a brightness threshold above 15% should be sufficient to account for this change.
 
-## Example apps.yaml:
+## Sensor only configuration
+
+The sensor only option allows you to create a sensor only configuration. This will not adjust any lights and will ignore any lights defined in the app, instead it will simply create a Home Assistant sensor. This can be used to observe the app behavior, or to use the sensor data with another automation or app. 
+
+## Example apps.yaml
 
 ```
 main_periodic_lights:
@@ -136,7 +140,7 @@ exterior_periodic_lights:
   stop_lights_off: True
 ```
 
-## Example script/automation for event subscription:
+## Example script/automation for event subscription
 
 ```
 script:
@@ -147,7 +151,7 @@ script:
           threshold: 255
           transition: 0
 ```
-## Example sensor only configuration:
+## Example sensor only configuration
 ```
 sensor_only_periodic_lights:
   module: update_lights
