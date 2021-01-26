@@ -19,7 +19,7 @@ end_index | False | Same as start index but changes the end time rather than sta
 brightness_threshold | False | Residual threshold between calculated brightness and current brightness if residual > threshold no change | 255 or 100 | Bit or percent
 brightness_unit | False | percent or bit | bit | None
 max_brightness_level | False | Max brightness level | 255 or 100 | Bit or percent
-min_brightness_level | False | Max brightness level | 3 or 1 | Bit or percent
+min_brightness_level | False | Min brightness level | 3 or 1 | Bit or percent
 color_temp_unit | False | Kelvin or mired color temp unit | kelvin | 
 color_temp_max | False | Maximum color temp | 4000 | kelvin
 color_temp_min | False | Min color temp | 2200 | kelvin
