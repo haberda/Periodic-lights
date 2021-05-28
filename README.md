@@ -23,6 +23,7 @@ min_brightness_level | False | Min brightness level | 3 or 1 | Bit or percent
 color_temp_unit | False | Kelvin or mired color temp unit | kelvin | 
 color_temp_max | False | Maximum color temp | 4000 | kelvin
 color_temp_min | False | Min color temp | 2200 | kelvin
+perfer_rgb | False | Prefer RGB over color temperature | False | Boolean
 disable_entity | False | List of entities that when active disable the functionality of this code. Can take a comma separated condition rather than disable condition key below (e.g. input_boolean.party_mode,on) | None | List
 disable_condition | False | Override default condition check for disable_entity | on, True, or Home | Boolean or string in list form
 sleep_entity | False | List of entities that track whether a 'sleep mode' has been enabled this immediatly brings lights to the lowest brightness and color temp defined. Can take a comma separated condition rather than disable condition key below (e.g. input_boolean.sleep_mode,on) | None | List
