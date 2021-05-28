@@ -27,7 +27,7 @@ disable_entity | False | List of entities that when active disable the functiona
 disable_condition | False | Override default condition check for disable_entity | on, True, or Home | Boolean or string in list form
 sleep_entity | False | List of entities that track whether a 'sleep mode' has been enabled this immediatly brings lights to the lowest brightness and color temp defined. Can take a comma separated condition rather than disable condition key below (e.g. input_boolean.sleep_mode,on) | None | List
 sleep_condition | False | Override default condition check for sleep_entity | on, True, or Home | Boolean or string in list form
-red_hour | False | Time in format 'HH:MM:SS' during the start and stop times that the RGB lights turn red if sleep conditions are met | None | Time
+sleep_color_temp | False | Color temperature when sleep_mode is True | None | Color temperature in mired or kelvin
 sleep_color | False | Color in string format (e.g. 'red') | red | String
 transition | False | Light transition time in seconds | 5 | Seconds
 companion_script | False | Script to execute before changing lights, useful to force Zwave lights to update state | None | 
