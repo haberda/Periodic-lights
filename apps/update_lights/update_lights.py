@@ -3,7 +3,7 @@ import datetime
 from datetime import timedelta
 import math
 
-class update_lights(hass.Hass):
+class update_lights_beta(hass.Hass):
     def initialize(self):
         now = datetime.datetime.now()
         #Import all user settings
@@ -20,12 +20,13 @@ class update_lights(hass.Hass):
         self.transition = int(self.args.get('transition', 5))
         self.start_time = str(self.args.get('start_time', 'sunset'))
         self.end_time = str(self.args.get('end_time', 'sunrise'))
-        self.red_hour = self.args.get('red_hour', None)
+        self.perfer_rgb = bool(self.args.get('perfer_rgb', False))
         self.start_index = str(self.args.get('start_index', self.start_time))
         self.end_index = str(self.args.get('end_index', self.end_time))
         self.color_temp_unit = str(self.args.get('color_temp_unit', 'kelvin'))
         self.color_temp_max = int(self.args.get('color_temp_max', 4000))
         self.color_temp_min = int(self.args.get('color_temp_min', 2200))
+        self.sleep_color_temp = int(self.args.get('sleep_color_temp', self.color_temp_min))
         self.watch_light_state = self.args.get('watch_light_state', True)
         self.keep_lights_on = self.args.get('keep_lights_on', False)
         self.start_lights_on = self.args.get('start_lights_on', False)
@@ -164,9 +165,7 @@ class update_lights(hass.Hass):
                 self.turn_off(entity)
 
     def pct(self):
-        ##########################
-        # Calculate night percent
-        ##########################
+        """Calculate percentage through day"""
         dt = datetime.datetime.now()
         now_time = dt.timestamp()
 
@@ -198,13 +197,10 @@ class update_lights(hass.Hass):
         #Figure out end index midpoint
         half_seconds = (end_i - start).total_seconds() / 2
         midpoint_end = start + timedelta(seconds=half_seconds)
-
         #Calculate the midpoint between start and end time incorpertaing the indexed times
         if (dt > midpoint_start and dt < midpoint_end) or (dt < midpoint_start and dt > midpoint_end):
             self.log('In the middle of the midpoints')
             pct = 0
-        # elif self.now_is_between(self.end_time, self.start_time):
-        #     midpoint = half.timestamp()
         else:
             if dt < midpoint_start:
                 # midpoint = midpoint_start.timestamp()
@@ -212,38 +208,38 @@ class update_lights(hass.Hass):
             else:
                 midpoint = midpoint_start.timestamp()
                 # midpoint = midpoint_end.timestamp()
-
             pct = abs(float(math.sin(math.pi*((now_time - midpoint) / (86400)))))
-
         return pct, half, midpoint_start, midpoint_end
 
     def color(self, pct):
         color_max = self.color_temp_max
         color_min = self.color_temp_min
+        color_sleep = self.sleep_color_temp
         if self.color_temp_unit != 'kelvin' and self.color_temp_unit != 'mired':
             #Catch the case where the user entered bad information or had a typo
             color_max = 4000
+            self.color_temp_max = 4000
             color_min = 2200
+            self.color_temp_min = 2200
+            color_sleep = color_min
+            self.sleep_color_temp = color_min
             self.color_temp_unit = 'kelvin'
         elif self.color_temp_unit == 'mired':
             #Switch to kelvin for the calculation
             color_max = self.color_temperature_mired_to_kelvin(color_max)
             color_min = self.color_temperature_mired_to_kelvin(color_min)
-
+            color_sleep = self.color_temperature_mired_to_kelvin(color_sleep)
         sleep_state = self.condition_query(self.sleep_entity, self.sleep_condition)
-
         if sleep_state == False:
             #Calculate desired color temp
             desired_temp_kelvin = round(int(color_min) + (abs(int(color_max) - int(color_min))* float(pct)))
         else:
-            desired_temp_kelvin = color_min
+            desired_temp_kelvin = color_sleep
         desired_temp_mired = self.color_temperature_kelvin_to_mired(desired_temp_kelvin)
         return int(desired_temp_kelvin), int(desired_temp_mired)
 
     def rgb_color(self, desired_temp):
-        ###########################
-        #Color temp to rgb copied from HASS color utils
-        ###########################
+        """Color temp to rgb copied from HASS color util"""
         desired_temp=desired_temp/100
 
         if desired_temp <= 66:
@@ -302,19 +298,6 @@ class update_lights(hass.Hass):
             return int(min_brightness_level)
         return brightness_level
 
-    def red_hour_query (self):
-        if self.red_hour is not None:
-            try:
-                if self.now_is_between(self.red_hour, self.end_time):
-                    return True
-                else:
-                    return False
-            except:
-                self.log('Red hour time string malformed')
-                return False
-        else:
-            return False
-
     def condition_query (self, entities, condition = None):
         value = False
         condition_states = ['on', 'Home', 'home', 'True', 'true']
@@ -338,6 +321,7 @@ class update_lights(hass.Hass):
         return math.floor(1000000 / kelvin_temperature)
 
     def adjust_light(self, entities, threshold, transition):
+        """ Change light temp and brightness if conditions are met"""
         #Calculate our percentage and midpoints
         pct, half, midpoint_start, midpoint_end = self.pct()
         #Calculate brightness and temp based on percentage
@@ -363,12 +347,6 @@ class update_lights(hass.Hass):
             self.turn_on(entity_id=self.args['companion_script'])
         #Check if sleep conditions are met
         sleep_state = self.condition_query(self.sleep_entity, self.sleep_condition)
-        #Check if red hour conditions are met
-        red_hour = self.red_hour_query()
-
-        ##########################
-        # Change light temp and brightness if conditions are met
-        ##########################
 
         if isinstance(entities, str):
             entities = entities.split(',')
@@ -376,22 +354,22 @@ class update_lights(hass.Hass):
         kelvin_list = []
         rgb_list = []
         brightness_only_list = []
-        #Create service data structures for each light type
+        """Create service data structures for each light type"""
         rgb_service_data = {"brightness": brightness_level, "transition": transition}
         color_temp_service_data = {"brightness": brightness_level, "transition": transition}
         kelvin_service_data = {"brightness": brightness_level, "transition": transition}
         brightness_only_service_data = {"brightness": brightness_level, "transition": transition}
 
         for entity_id in entities:
-            #Loop through lights, checking the condition for each one. Append each compliant light to a list depending on what type of adjustment the light is capable of.
+            """Loop through lights, checking the condition for each one. Append each compliant light to a list depending on what type of adjustment the light is capable of."""
             cur_state = self.get_state(entity_id)
             if (cur_state == 'on' or (self.keep_lights_on and self.now_is_between(self.start_time, self.end_time))):
                 brightness = self.get_state(entity_id, attribute="brightness")
-                if (brightness is not None and (abs(int(brightness) - int(brightness_level)) < int(threshold)) and int(brightness) != int(brightness_level)) or self.keep_lights_on or (red_hour and sleep_state):
+                if (brightness is not None and (abs(int(brightness) - int(brightness_level)) < int(threshold)) and int(brightness) != int(brightness_level)) or self.keep_lights_on or sleep_state:
                     color_temp = self.get_state(entity_id, attribute='color_temp')
                     kelvin = self.get_state(entity_id, attribute='kelvin')
                     rgb_color = self.get_state(entity_id, attribute='rgb_color')
-                    if (rgb_color is not None and color_temp is None and kelvin is None) or (red_hour == True and sleep_state == True and rgb_color is not None):
+                    if (rgb_color is not None and color_temp is None and kelvin is None) or (sleep_state == True and rgb_color is not None):
                         rgb_list.append(entity_id)
                     elif color_temp is not None:
                         color_temp_list.append(entity_id)
@@ -400,28 +378,24 @@ class update_lights(hass.Hass):
                     else:
                         brightness_only_list.append(entity_id)
 
-        if rgb_list:
-            if red_hour and sleep_state:
-                tmp_red = 255
-                tmp_green = 0
-                tmp_blue = 0
-                # rgb_service_data['brightness'] = int((self.max_brightness_level + self.min_brightness_level) / 2)
+        if len(rgb_list) != 0:
+            if sleep_state:
                 rgb_service_data['color_name'] = self.sleep_color
             else:
                 rgb_service_data['rgb_color'] = [int(tmp_red), int(tmp_green), int(tmp_blue)]
             rgb_service_data['entity_id'] = rgb_list
             self.call_service("light/turn_on", **rgb_service_data)
 
-        if color_temp_list:
+        if len(color_temp_list) != 0:
             color_temp_service_data['entity_id'] = color_temp_list
             color_temp_service_data['color_temp'] = desired_temp_mired
             self.call_service("light/turn_on", **color_temp_service_data)
 
-        if kelvin_list:
+        if len(kelvin_list) != 0:
             kelvin_service_data['entity_id'] = kelvin_list
             kelvin_service_data['kelvin'] = desired_temp_kelvin
             self.call_service("light/turn_on", **kelvin_service_data)
 
-        if brightness_only_list:
+        if len(brightness_only_list) != 0:
             brightness_only_service_data['entity_id'] = brightness_only_list
             self.call_service("light/turn_on", **brightness_only_service_data)
