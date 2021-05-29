@@ -3,7 +3,7 @@ import datetime
 from datetime import timedelta
 import math
 
-class update_lights_beta(hass.Hass):
+class update_lights(hass.Hass):
     def initialize(self):
         now = datetime.datetime.now()
         #Import all user settings
