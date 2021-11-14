@@ -23,13 +23,18 @@ min_brightness_level | False | Min brightness level | 3 or 1 | Bit or percent
 color_temp_unit | False | Kelvin or mired color temp unit | kelvin | 
 color_temp_max | False | Maximum color temp | 4000 | kelvin
 color_temp_min | False | Min color temp | 2200 | kelvin
-perfer_rgb | False | Prefer RGB over color temperature | False | Boolean
+
+perfer_rgb | False | Prefer RGB or xy over color temperature | False | Boolean
 disable_entity | False | List of entities that when active disable the functionality of this code. Can take a comma separated condition rather than disable condition key below (e.g. input_boolean.party_mode,on) | None | List
 disable_condition | False | Override default condition check for disable_entity | on, True, or Home | Boolean or string in list form
 sleep_entity | False | List of entities that track whether a 'sleep mode' has been enabled this immediatly brings lights to the lowest brightness and color temp defined. Can take a comma separated condition rather than disable condition key below (e.g. input_boolean.sleep_mode,on) | None | List
 sleep_condition | False | Override default condition check for sleep_entity | on, True, or Home | Boolean or string in list form
 sleep_color_temp | False | Color temperature when sleep_mode is True | None | Color temperature in mired or kelvin
 sleep_color | False | Color in string format (e.g. 'red') | red | String
+color_unit  | False | Color unit if you intend to use XY colors (set to 'xy' if you intend to use xy color) | None | String
+color_max | False | Color value for xy max (required if using xy colors) | None | list
+color_min | False | Color value for xy min (required if using xy colors) | None | list
+sleep_xy_color | False | Color value for xy sleep mode | None | list
 transition | False | Light transition time in seconds | 5 | Seconds
 companion_script | False | Script to execute before changing lights, useful to force Zwave lights to update state | None | 
 sensor_log | False | Creates a sensor to track the dimming percentage, mostly for diagnostic purposes, format: sensor.my_sensor | None | 
@@ -70,6 +75,12 @@ This is an example of the behavior of the light brighness with sunset->sunrise s
   end_index: sunrise - 02:00:00
 ```
 Note the step change in brightness at the start and end times as the code switches from one mid-point to another, and the two hour minimum point in the middle of the night. The brightness step change should be accounted for in your threshold settings if you want the lights that are on to smoothly transition at that point. In the case of this example the step change is about 15%, therefore a brightness threshold above 15% should be sufficient to account for this change.
+
+## xy color configuration
+
+xy colors can be set in place of color temperature. This is set as a list like in the example below. Refer to the xy color chart below to choose your color range:
+
+![https://upload.wikimedia.org/wikipedia/commons/b/ba/PlanckianLocus.png](https://upload.wikimedia.org/wikipedia/commons/b/ba/PlanckianLocus.png)
 
 ## Sensor only configuration
 
@@ -141,6 +152,23 @@ exterior_periodic_lights:
   stop_lights_off: True
 ```
 
+## Example of xy color configuration
+
+```
+xy_colors:
+  module: update_lights
+  class: update_lights
+  entities:
+    - light.living_room_lamp
+    - light.living_room_lamp_2
+  color_unit: 'xy'
+  color_max: 
+    - 0.3
+    - 0.35
+  color_min: 
+    - 0.45
+    - 0.45
+```
 ## Example script/automation for event subscription
 
 ```
@@ -152,6 +180,7 @@ script:
           threshold: 255
           transition: 0
 ```
+
 ## Example sensor only configuration
 ```
 sensor_only_periodic_lights:
