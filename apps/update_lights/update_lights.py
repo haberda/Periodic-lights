@@ -9,7 +9,9 @@ class update_lights(hass.Hass):
     def initialize(self):
         now = datetime.datetime.now()
         # Import all user settings
-        self.all_lights = self.args.get('entities', [])
+        lights = self.args.get('entities', [])
+        areas = self.args.get('areas', [])
+        reject = self.args.get('reject',[])
         self.disable_entity = self.args.get('disable_entity', [])
         self.disable_condition = self.args.get('disable_condition', [])
         self.sleep_entity = self.args.get('sleep_entity', [])
@@ -20,6 +22,7 @@ class update_lights(hass.Hass):
         self.min_brightness_level = int(self.args.get('min_brightness_level', 3))
         self.brightness_unit = str(self.args.get('brightness_unit', 'bit'))
         self.brightness_threshold = int(self.args.get('brightness_threshold', 255))
+        self.brightness_only = bool(self.args.get('brightness_only', False))
         self.transition = int(self.args.get('transition', 5))
         self.start_time = str(self.args.get('start_time', 'sunset'))
         self.end_time = str(self.args.get('end_time', 'sunrise'))
@@ -41,6 +44,18 @@ class update_lights(hass.Hass):
         self.sensor_only = self.args.get('sensor_only', False)
         self.event = self.args.get('event_subscription', None)
 
+        self.all_lights = lights
+        rejectFilter = ""
+        if reject:
+            for item in reject:
+                rejectFilter = rejectFilter + "| rejectattr('entity_id', 'contains','" + item + "')"
+        if areas:
+            areaLights = []
+            for area in areas:
+                templateString = "{{ area_entities('"+area+"')| reject('is_hidden_entity') | expand |selectattr('entity_id', 'match','light')" + rejectFilter + " | rejectattr('state', 'eq', 'unavailable') | rejectattr('attributes.supported_color_modes','eq',['onoff']) | map(attribute='entity_id') | list }}"
+                areaLights = areaLights + self.render_template(templateString)
+            self.all_lights = self.all_lights + areaLights
+        self.log(self.all_lights)
         interval = int(self.args.get('run_every', 180))
         target = now + timedelta(seconds=interval)
 
@@ -126,6 +141,7 @@ class update_lights(hass.Hass):
         self.adjust_light(entities, threshold, transition)
 
     def event_subscription(self, event, data, kwargs):
+        self.log('Event fired')
         threshold = 255
         if 'threshold' in data:
             threshold = data['threshold']
@@ -277,7 +293,7 @@ class update_lights(hass.Hass):
         return value
 
     def adjust_light(self, entities, threshold, transition):
-        """ Change light temp and brightness if conditions are met"""
+        """ Change light temp and brightness if conditions are met """
         #Calculate our percentage and midpoints
         pct, half, midpoint_start, midpoint_end = self.pct()
         #Calculate brightness, temp, and colors, based on percentage
@@ -343,7 +359,7 @@ class update_lights(hass.Hass):
         rgb_service_data = {"brightness": brightness_level, "transition": transition}
         color_temp_service_data = {"brightness": brightness_level, "transition": transition}
         brightness_only_service_data = {"brightness": brightness_level, "transition": transition}
-        color_modes = ['rgb', 'hs', 'xy']
+        color_modes = ['rgb', 'rgbw', 'hs', 'xy']
         for entity_id in entities:
             """Loop through lights, checking the condition and supported color modes for each one. 
             Append each compliant light to a list depending on what type of adjustment the light is capable of."""
@@ -352,9 +368,9 @@ class update_lights(hass.Hass):
                 brightness = self.get_state(entity_id, attribute="brightness")
                 if (brightness is not None and (abs(int(brightness) - int(brightness_level)) < int(threshold)) and int(brightness) != int(brightness_level)) or self.keep_lights_on or sleep_state:
                     supported_color_modes = self.get_state(entity_id, attribute='supported_color_modes')
-                    if any(item in color_modes for item in supported_color_modes) and ('color_temp' not in supported_color_modes or sleep_state or perfer_rgb):
+                    if any(item in color_modes for item in supported_color_modes) and ('color_temp' not in supported_color_modes or sleep_state or perfer_rgb) and not self.brightness_only:
                         rgb_list.append(entity_id)
-                    elif 'color_temp' in supported_color_modes:
+                    elif 'color_temp' in supported_color_modes and not self.brightness_only:
                         color_temp_list.append(entity_id)
                     else:
                         brightness_only_list.append(entity_id)
@@ -372,3 +388,4 @@ class update_lights(hass.Hass):
         if len(brightness_only_list) != 0:
             brightness_only_service_data['entity_id'] = brightness_only_list
             self.call_service("light/turn_on", **brightness_only_service_data)
+
