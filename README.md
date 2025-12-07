@@ -1,5 +1,7 @@
 # Periodic lights
 
+Note this repository is archived, please use the [custom integration](https://github.com/haberda/periodic-lights-integration).
+
 ## Introduction
 
 Periodic lights (formally update lights) is an automatic light brightness and color temperature adjustment tool for AppDaemon. This code will act on a provided list of lights to keep them in sync with the current light parameters. What makes this app different from others (namely custom components Circadian Lighting, Adaptive Lighting or the built-in Flux component) is the implementation of brightness change thresholds; this allows for manual adjustment of a light outside of the threshold range that the app will then ignore until and unless the light is either manually adjusted to the current threshold range, or the light is toggled. The brightness/color temperature is calculated by determining how far from the middle point of the start and end time the current time is. All light types can be mixed (e.g. you can have a list with RGB, color temp, and brightness only lights together). There are numerous options that can be configured to suit your needs.
